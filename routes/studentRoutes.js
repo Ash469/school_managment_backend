@@ -11,7 +11,7 @@ const validateStudent = [
   body('email').isEmail().withMessage('Please provide a valid email'),
   body('dateOfBirth').isISO8601().withMessage('Please provide a valid date of birth'),
   body('gender').isIn(['male', 'female', 'other']).withMessage('Invalid gender'),
-  body('assignedClass').isMongoId().withMessage('Please provide a valid class ID'),
+  body('assignedClass').optional().isMongoId().withMessage('Please provide a valid class ID'),
   body('rollNumber').trim().isLength({ min: 1 }).withMessage('Roll number is required'),
   body('address.street').trim().isLength({ min: 5 }).withMessage('Street address is required'),
   body('address.city').trim().isLength({ min: 2 }).withMessage('City is required'),
@@ -48,10 +48,12 @@ router.post('/', auth, validateStudent, async (req, res) => {
       return res.status(400).json({ message: 'Roll number already exists in your school' });
     }
 
-    // Verify class exists and belongs to the same school
-    const classData = await Class.findOne({ _id: assignedClass, schoolId: req.schoolId });
-    if (!classData) {
-      return res.status(400).json({ message: 'Invalid class or class does not belong to your school' });
+    // Verify class exists and belongs to the same school (only if assignedClass is provided)
+    if (assignedClass) {
+      const classData = await Class.findOne({ _id: assignedClass, schoolId: req.schoolId });
+      if (!classData) {
+        return res.status(400).json({ message: 'Invalid class or class does not belong to your school' });
+      }
     }
 
     const student = new Student({
@@ -72,10 +74,12 @@ router.post('/', auth, validateStudent, async (req, res) => {
     await student.save();
     await student.populate('assignedClass', 'name subjects');
 
-    // Add student to class
-    await Class.findByIdAndUpdate(assignedClass, {
-      $addToSet: { students: student._id }
-    });
+    // Add student to class (only if assignedClass is provided)
+    if (assignedClass) {
+      await Class.findByIdAndUpdate(assignedClass, {
+        $addToSet: { students: student._id }
+      });
+    }
 
     res.status(201).json({
       message: 'Student enrolled successfully',

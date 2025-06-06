@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
 const teacherSchema = new mongoose.Schema({
   name: {
@@ -12,6 +13,11 @@ const teacherSchema = new mongoose.Schema({
     unique: true,
     lowercase: true,
     trim: true
+  },
+  password: {
+    type: String,
+    required: [true, 'Password is required'],
+    minlength: 6
   },
   schoolId: {
     type: String,
@@ -59,6 +65,17 @@ const teacherSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now
+  },
+  salary: {
+    amount: {
+      type: Number,
+      required: [true, 'Salary amount is required'],
+      min: 0
+    },
+    currency: {
+      type: String,
+      default: 'USD'
+    }
   }
 });
 
@@ -66,9 +83,25 @@ const teacherSchema = new mongoose.Schema({
 teacherSchema.index({ schoolId: 1, createdAt: -1 });
 teacherSchema.index({ schoolId: 1, email: 1 }, { unique: true });
 
-teacherSchema.pre('save', function(next) {
+teacherSchema.pre('save', async function(next) {
   this.updatedAt = Date.now();
+  
+  // Hash password if modified
+  if (this.isModified('password')) {
+    try {
+      const salt = await bcrypt.genSalt(10);
+      this.password = await bcrypt.hash(this.password, salt);
+    } catch (error) {
+      return next(error);
+    }
+  }
+  
   next();
 });
+
+// Compare password method
+teacherSchema.methods.comparePassword = async function(candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
+};
 
 module.exports = mongoose.model('Teacher', teacherSchema);

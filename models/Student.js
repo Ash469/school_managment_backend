@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
 const studentSchema = new mongoose.Schema({
   name: {
@@ -12,6 +13,11 @@ const studentSchema = new mongoose.Schema({
     unique: true,
     lowercase: true,
     trim: true
+  },
+  password: {
+    type: String,
+    required: [true, 'Password is required'],
+    minlength: 6
   },
   schoolId: {
     type: String,
@@ -66,8 +72,8 @@ const studentSchema = new mongoose.Schema({
   // Class Assignment
   assignedClass: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Class',
-    required: [true, 'Class assignment is required']
+    ref: 'Class'
+    // Remove required validation to allow creation without class assignment
   },
   rollNumber: {
     type: String,
@@ -207,9 +213,19 @@ studentSchema.index({ schoolId: 1, email: 1 }, { unique: true });
 studentSchema.index({ schoolId: 1, assignedClass: 1 });
 studentSchema.index({ schoolId: 1, rollNumber: 1 }, { unique: true });
 
-// Calculate attendance percentage before save
-studentSchema.pre('save', function(next) {
+// Hash password before saving
+studentSchema.pre('save', async function(next) {
   this.updatedAt = Date.now();
+  
+  // Hash password if modified
+  if (this.isModified('password')) {
+    try {
+      const salt = await bcrypt.genSalt(10);
+      this.password = await bcrypt.hash(this.password, salt);
+    } catch (error) {
+      return next(error);
+    }
+  }
   
   // Calculate attendance statistics
   if (this.attendance && this.attendance.length > 0) {
@@ -231,5 +247,10 @@ studentSchema.pre('save', function(next) {
   
   next();
 });
+
+// Compare password method
+studentSchema.methods.comparePassword = async function(candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
+};
 
 module.exports = mongoose.model('Student', studentSchema);

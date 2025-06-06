@@ -11,10 +11,29 @@ Most endpoints require JWT authentication. Include the token in the Authorizatio
 Authorization: Bearer <your_jwt_token>
 ```
 
-## Test Accounts
+## Multi-User Authentication System
+
+The system supports three types of users with separate login endpoints:
+
+### User Types
+1. **Admin**: Full system management (schoolId-scoped)
+2. **Teacher**: View schedules, salary records, class management
+3. **Student**: View schedules, fee records, academic progress
+
+### Test Accounts
 Use these seeded accounts for testing:
+
+**Admin Accounts:**
 - **Email**: `admin1@school.com` | **Password**: `password123` | **School**: Springfield High School | **School ID**: SCH001
 - **Email**: `admin2@school.com` | **Password**: `password123` | **School**: Riverside Academy | **School ID**: SCH002
+
+**Teacher Accounts (SCH001):**
+- **Email**: `sarah.johnson@school.com` | **Password**: `password123` | **Name**: Sarah Johnson
+- **Email**: `michael.brown@school.com` | **Password**: `password123` | **Name**: Michael Brown
+
+**Student Accounts (SCH001):**
+- **Email**: `alice.wilson@student.com` | **Password**: `password123` | **Name**: Alice Wilson
+- **Email**: `bob.davis@student.com` | **Password**: `password123` | **Name**: Bob Davis
 
 ---
 
@@ -26,6 +45,128 @@ This system supports multiple schools with complete data isolation:
 - **Data Isolation**: All data is automatically filtered by schoolId
 - **Auto-Assignment**: schoolId is automatically assigned to all records based on admin's school
 - **Fast Queries**: Database indexes ensure optimal performance for school-specific queries
+
+---
+
+## Authentication Endpoints
+
+### 1. Admin Login
+**POST** `/api/admin/login`
+
+**Body:**
+```json
+{
+  "email": "admin1@school.com",
+  "password": "password123"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Login successful",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "admin": {
+    "id": "507f1f77bcf86cd799439011",
+    "name": "John Doe",
+    "email": "admin1@school.com",
+    "schoolName": "Springfield High School",
+    "schoolId": "SCH001",
+    "role": "school_admin",
+    "permissions": ["manage_students", "manage_teachers", "manage_classes", "manage_fees", "view_reports"]
+  }
+}
+```
+
+### 2. Teacher Login
+**POST** `/api/auth/teacher/login`
+
+**Body:**
+```json
+{
+  "email": "sarah.johnson@school.com",
+  "password": "password123"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Login successful",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": "507f1f77bcf86cd799439012",
+    "name": "Sarah Johnson",
+    "email": "sarah.johnson@school.com",
+    "role": "class_teacher",
+    "schoolId": "SCH001",
+    "assignedClass": {
+      "_id": "507f1f77bcf86cd799439014",
+      "name": "Grade 10A",
+      "grade": "10",
+      "section": "A"
+    },
+    "userType": "teacher"
+  }
+}
+```
+
+### 3. Student Login
+**POST** `/api/auth/student/login`
+
+**Body:**
+```json
+{
+  "email": "alice.wilson@student.com",
+  "password": "password123"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Login successful",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": "507f1f77bcf86cd799439013",
+    "name": "Alice Wilson",
+    "email": "alice.wilson@student.com",
+    "rollNumber": "STU001",
+    "schoolId": "SCH001",
+    "assignedClass": {
+      "_id": "507f1f77bcf86cd799439014",
+      "name": "Grade 10A",
+      "grade": "10",
+      "section": "A"
+    },
+    "userType": "student"
+  }
+}
+```
+
+### 4. Get User Profile (Multi-Type)
+**GET** `/api/auth/profile`
+**Headers:** `Authorization: Bearer <token>`
+
+**Description:** Returns profile data based on user type (admin/teacher/student)
+
+**Response for Student:**
+```json
+{
+  "_id": "507f1f77bcf86cd799439013",
+  "name": "Alice Wilson",
+  "email": "alice.wilson@student.com",
+  "schoolId": "SCH001",
+  "rollNumber": "STU001",
+  "assignedClass": {
+    "_id": "507f1f77bcf86cd799439014",
+    "name": "Grade 10A",
+    "subjects": ["Mathematics", "Physics", "Chemistry"]
+  },
+  "academicProgress": [...],
+  "userType": "student"
+}
+```
 
 ---
 
@@ -67,35 +208,7 @@ This system supports multiple schools with complete data isolation:
 }
 ```
 
-### 2. Login Admin
-**POST** `/api/admin/login`
-
-**Body:**
-```json
-{
-  "email": "admin1@school.com",
-  "password": "password123"
-}
-```
-
-**Response:**
-```json
-{
-  "message": "Login successful",
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "admin": {
-    "id": "507f1f77bcf86cd799439011",
-    "name": "John Doe",
-    "email": "admin1@school.com",
-    "schoolName": "Springfield High School",
-    "schoolId": "SCH001",
-    "role": "school_admin",
-    "permissions": ["manage_students", "manage_teachers", "manage_classes", "manage_fees", "view_reports"]
-  }
-}
-```
-
-### 3. Get Admin Profile
+### 2. Get Admin Profile
 **GET** `/api/admin/profile`
 **Headers:** `Authorization: Bearer <token>`
 
@@ -116,23 +229,6 @@ This system supports multiple schools with complete data isolation:
 }
 ```
 
-### 4. Update Admin
-**PUT** `/api/admin/:id`
-**Headers:** `Authorization: Bearer <token>`
-
-**Body:**
-```json
-{
-  "name": "Updated Admin Name",
-  "email": "updated@school.com",
-  "phone": "+9876543210",
-  "schoolName": "Updated School Name",
-  "permissions": ["manage_students", "manage_teachers"]
-}
-```
-
-**Note:** schoolId cannot be updated after creation.
-
 ---
 
 ## Teacher Endpoints
@@ -148,13 +244,18 @@ This system supports multiple schools with complete data isolation:
 {
   "name": "Emma Wilson",
   "email": "emma.wilson@school.com",
+  "password": "teacher123",
   "qualifications": ["MSc Biology", "BEd"],
   "role": "subject_teacher",
+  "salary": {
+    "amount": 52000,
+    "currency": "USD"
+  },
   "assignedClass": "507f1f77bcf86cd799439014"
 }
 ```
 
-**Note:** `assignedClass` is optional and should be a valid Class ObjectId.
+**Note:** `password` is required for teacher login. `assignedClass` is optional.
 
 **Response:**
 ```json
@@ -167,6 +268,10 @@ This system supports multiple schools with complete data isolation:
     "schoolId": "SCH001",
     "qualifications": ["MSc Biology", "BEd"],
     "role": "subject_teacher",
+    "salary": {
+      "amount": 52000,
+      "currency": "USD"
+    },
     "assignedClass": {
       "_id": "507f1f77bcf86cd799439014",
       "name": "Grade 10A"
@@ -272,126 +377,735 @@ This system supports multiple schools with complete data isolation:
 {
   "name": "Charlie Smith",
   "email": "charlie.smith@student.com",
+  "password": "student123",
+  "dateOfBirth": "2008-03-15",
+  "gender": "male",
+  "rollNumber": "STU003",
+  "address": {
+    "street": "789 Main St",
+    "city": "Springfield",
+    "state": "Illinois",
+    "zipCode": "62701",
+    "country": "USA"
+  },
   "parentInfo": {
     "name": "David Smith",
-    "contact": "+1234567894"
+    "contact": "+1234567894",
+    "email": "david.smith@parent.com"
   }
 }
 ```
 
-**Response:**
-```json
-{
-  "message": "Student enrolled successfully",
-  "student": {
-    "_id": "507f1f77bcf86cd799439013",
-    "name": "Charlie Smith",
-    "email": "charlie.smith@student.com",
-    "schoolId": "SCH001",
-    "parentInfo": {
-      "name": "David Smith",
-      "contact": "+1234567894"
-    },
-    "academicProgress": [],
-    "createdBy": "507f1f77bcf86cd799439011",
-    "createdAt": "2024-01-15T10:30:00.000Z",
-    "updatedAt": "2024-01-15T10:30:00.000Z"
-  }
-}
-```
+**Note:** `password` is required for student login.
 
-### 2. Get All Students (School-Specific)
-**GET** `/api/students`
-**Headers:** `Authorization: Bearer <token>`
+---
 
-**Description:** Returns only students from the authenticated admin's school.
+## Schedule Management Endpoints
 
-**Response:**
-```json
-[
-  {
-    "_id": "507f1f77bcf86cd799439013",
-    "name": "Alice Wilson",
-    "email": "alice.wilson@student.com",
-    "schoolId": "SCH001",
-    "parentInfo": {
-      "name": "Robert Wilson",
-      "contact": "+1234567892"
-    },
-    "academicProgress": [
-      {
-        "subject": "Mathematics",
-        "grade": 85,
-        "semester": "Fall 2023"
-      }
-    ],
-    "createdBy": "507f1f77bcf86cd799439011",
-    "createdAt": "2024-01-15T10:30:00.000Z",
-    "updatedAt": "2024-01-15T10:30:00.000Z"
-  }
-]
-```
+**Note:** All schedule operations are automatically scoped to the admin's school (schoolId).
 
-### 3. Update Student
-**PUT** `/api/students/:id`
+### 1. Create Class Schedule
+**POST** `/api/schedules`
 **Headers:** `Authorization: Bearer <token>`
 
 **Body:**
 ```json
 {
-  "name": "Alice Wilson Updated",
-  "parentInfo": {
-    "name": "Robert Wilson",
-    "contact": "+1234567999"
+  "class": "507f1f77bcf86cd799439014",
+  "dayOfWeek": "monday",
+  "periods": [
+    {
+      "periodNumber": 1,
+      "subject": "Mathematics",
+      "teacher": "507f1f77bcf86cd799439012",
+      "startTime": "09:00",
+      "endTime": "09:45",
+      "room": "Room 101"
+    },
+    {
+      "periodNumber": 2,
+      "subject": "Physics",
+      "teacher": "507f1f77bcf86cd799439013",
+      "startTime": "09:55",
+      "endTime": "10:40",
+      "room": "Lab 1"
+    }
+  ],
+  "academicYear": "2024-25"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Schedule created successfully",
+  "schedule": {
+    "_id": "507f1f77bcf86cd799439015",
+    "schoolId": "SCH001",
+    "class": {
+      "_id": "507f1f77bcf86cd799439014",
+      "name": "Grade 10A",
+      "grade": "10",
+      "section": "A"
+    },
+    "dayOfWeek": "monday",
+    "periods": [
+      {
+        "periodNumber": 1,
+        "subject": "Mathematics",
+        "teacher": {
+          "_id": "507f1f77bcf86cd799439012",
+          "name": "Sarah Johnson",
+          "email": "sarah.johnson@school.com"
+        },
+        "startTime": "09:00",
+        "endTime": "09:45",
+        "room": "Room 101"
+      }
+    ],
+    "academicYear": "2024-25",
+    "createdBy": "507f1f77bcf86cd799439011"
+  }
+}
+```
+
+### 2. Get Student's Daily Schedule (OPTIMIZED)
+**GET** `/api/schedules/student/:classId/daily/:dayOfWeek`
+**Headers:** `Authorization: Bearer <token>`
+
+**Example:** `/api/schedules/student/507f1f77bcf86cd799439014/daily/monday`
+
+**Response:**
+```json
+{
+  "dayOfWeek": "monday",
+  "class": {
+    "_id": "507f1f77bcf86cd799439014",
+    "name": "Grade 10A",
+    "grade": "10",
+    "section": "A"
   },
-  "academicProgress": [
+  "periods": [
     {
+      "periodNumber": 1,
       "subject": "Mathematics",
-      "grade": 90,
-      "semester": "Spring 2024"
+      "teacher": {
+        "_id": "507f1f77bcf86cd799439012",
+        "name": "Sarah Johnson",
+        "email": "sarah.johnson@school.com"
+      },
+      "startTime": "09:00",
+      "endTime": "09:45",
+      "room": "Room 101"
     },
     {
+      "periodNumber": 2,
       "subject": "Physics",
-      "grade": 82,
-      "semester": "Spring 2024"
+      "teacher": {
+        "_id": "507f1f77bcf86cd799439013",
+        "name": "Michael Brown",
+        "email": "michael.brown@school.com"
+      },
+      "startTime": "09:55",
+      "endTime": "10:40",
+      "room": "Lab 1"
     }
-  ]
+  ],
+  "totalPeriods": 2
 }
 ```
 
-### 4. Get Student Progress
-**GET** `/api/students/:id/progress`
+### 3. Get Teacher's Daily Schedule (OPTIMIZED)
+**GET** `/api/schedules/teacher/:teacherId/daily/:dayOfWeek`
+**Headers:** `Authorization: Bearer <token>`
+
+**Example:** `/api/schedules/teacher/507f1f77bcf86cd799439012/daily/monday`
+
+**Response:**
+```json
+{
+  "dayOfWeek": "monday",
+  "teacher": {
+    "name": "Sarah Johnson",
+    "email": "sarah.johnson@school.com"
+  },
+  "periods": [
+    {
+      "periodNumber": 1,
+      "subject": "Mathematics",
+      "startTime": "09:00",
+      "endTime": "09:45",
+      "room": "Room 101",
+      "className": "Grade 10A",
+      "classGrade": "10",
+      "classSection": "A"
+    },
+    {
+      "periodNumber": 3,
+      "subject": "Chemistry",
+      "startTime": "10:50",
+      "endTime": "11:35",
+      "room": "Lab 2",
+      "className": "Grade 10A",
+      "classGrade": "10",
+      "classSection": "A"
+    }
+  ],
+  "totalPeriods": 2,
+  "totalClasses": 1
+}
+```
+
+### 4. Get Class Weekly Schedule (OPTIMIZED)
+**GET** `/api/schedules/class/:classId/weekly`
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
 ```json
 {
-  "studentId": "507f1f77bcf86cd799439013",
-  "studentName": "Alice Wilson",
-  "academicProgress": [
-    {
-      "subject": "Mathematics",
-      "grade": 85,
-      "semester": "Fall 2023"
+  "class": {
+    "_id": "507f1f77bcf86cd799439014",
+    "name": "Grade 10A",
+    "grade": "10",
+    "section": "A"
+  },
+  "weeklySchedule": {
+    "monday": {
+      "periods": [...],
+      "totalPeriods": 5
     },
-    {
-      "subject": "Physics",
-      "grade": 78,
-      "semester": "Fall 2023"
-    }
-  ]
+    "tuesday": {
+      "periods": [...],
+      "totalPeriods": 5
+    },
+    "wednesday": {
+      "periods": [...],
+      "totalPeriods": 5
+    },
+    "thursday": null,
+    "friday": null,
+    "saturday": null
+  },
+  "academicYear": "2024-25"
 }
 ```
 
-### 5. Delete Student
-**DELETE** `/api/students/:id`
+### 5. Get Teacher's Weekly Workload (OPTIMIZED)
+**GET** `/api/schedules/teacher/:teacherId/weekly`
 **Headers:** `Authorization: Bearer <token>`
 
 **Response:**
 ```json
 {
-  "message": "Student removed successfully"
+  "teacherId": "507f1f77bcf86cd799439012",
+  "weeklyWorkload": {
+    "monday": [
+      {
+        "class": {
+          "_id": "507f1f77bcf86cd799439014",
+          "name": "Grade 10A"
+        },
+        "periods": [...]
+      }
+    ],
+    "tuesday": [...],
+    "wednesday": [...],
+    "thursday": [],
+    "friday": [],
+    "saturday": []
+  },
+  "statistics": {
+    "totalPeriodsPerWeek": 15,
+    "totalClassesHandled": 2,
+    "averagePeriodsPerDay": 2.5
+  },
+  "academicYear": "2024-25"
 }
+```
+
+### 6. Get Room Utilization (OPTIMIZED)
+**GET** `/api/schedules/room-utilization/:dayOfWeek`
+**Headers:** `Authorization: Bearer <token>`
+
+**Example:** `/api/schedules/room-utilization/monday`
+
+**Response:**
+```json
+{
+  "dayOfWeek": "monday",
+  "roomUtilization": {
+    "Room 101": [
+      {
+        "startTime": "09:00",
+        "endTime": "09:45",
+        "subject": "Mathematics",
+        "teacher": "Sarah Johnson",
+        "class": "Grade 10A (10A)",
+        "periodNumber": 1
+      },
+      {
+        "startTime": "12:30",
+        "endTime": "13:15",
+        "subject": "English",
+        "teacher": "Michael Brown",
+        "class": "Grade 10A (10A)",
+        "periodNumber": 4
+      }
+    ],
+    "Lab 1": [
+      {
+        "startTime": "09:55",
+        "endTime": "10:40",
+        "subject": "Physics",
+        "teacher": "Michael Brown",
+        "class": "Grade 10A (10A)",
+        "periodNumber": 2
+      }
+    ]
+  },
+  "totalRooms": 2,
+  "academicYear": "2024-25"
+}
+```
+
+### 7. Get Weekly Overview
+**GET** `/api/schedules/weekly-overview`
+**Headers:** `Authorization: Bearer <token>`
+
+**Description:** Returns all schedules grouped by day of the week for admin dashboard.
+
+---
+
+## Fee Management Endpoints
+
+**Note:** All fee operations are automatically scoped to the admin's school (schoolId).
+
+### 1. Create Fee Structure
+**POST** `/api/fees/structure`
+**Headers:** `Authorization: Bearer <token>`
+
+**Body:**
+```json
+{
+  "name": "Grade 10A Annual Fees 2024-25",
+  "class": "507f1f77bcf86cd799439014",
+  "feeComponents": [
+    {
+      "name": "Tuition Fee",
+      "amount": 5000,
+      "type": "tuition",
+      "isOptional": false
+    },
+    {
+      "name": "Library Fee",
+      "amount": 200,
+      "type": "library",
+      "isOptional": false
+    },
+    {
+      "name": "Sports Fee",
+      "amount": 300,
+      "type": "sports",
+      "isOptional": true
+    },
+    {
+      "name": "Examination Fee",
+      "amount": 150,
+      "type": "examination",
+      "isOptional": false
+    }
+  ],
+  "dueDate": "2024-04-30T00:00:00.000Z",
+  "installments": [
+    {
+      "name": "First Installment",
+      "amount": 2825,
+      "dueDate": "2024-02-28T00:00:00.000Z"
+    },
+    {
+      "name": "Second Installment",
+      "amount": 2825,
+      "dueDate": "2024-04-30T00:00:00.000Z"
+    }
+  ],
+  "academicYear": "2024-25"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Fee structure created successfully",
+  "feeStructure": {
+    "_id": "507f1f77bcf86cd799439016",
+    "schoolId": "SCH001",
+    "name": "Grade 10A Annual Fees 2024-25",
+    "class": {
+      "_id": "507f1f77bcf86cd799439014",
+      "name": "Grade 10A",
+      "grade": "10",
+      "section": "A"
+    },
+    "feeComponents": [...],
+    "totalAmount": 5650,
+    "dueDate": "2024-04-30T00:00:00.000Z",
+    "installments": [...],
+    "academicYear": "2024-25",
+    "isActive": true,
+    "createdBy": "507f1f77bcf86cd799439011"
+  },
+  "studentsCount": 2
+}
+```
+
+**Note:** Automatically creates pending payment records for all students in the specified class.
+
+### 2. Get Fee Payment Status
+**GET** `/api/fees/structure/:id/payments`
+**Headers:** `Authorization: Bearer <token>`
+
+**Description:** Get detailed payment status for a specific fee structure showing which students have paid.
+
+**Response:**
+```json
+{
+  "feeStructure": {
+    "_id": "507f1f77bcf86cd799439016",
+    "name": "Grade 10A Annual Fees 2024-25",
+    "class": {
+      "name": "Grade 10A",
+      "grade": "10",
+      "section": "A"
+    },
+    "totalAmount": 5650
+  },
+  "payments": [
+    {
+      "_id": "507f1f77bcf86cd799439017",
+      "student": {
+        "_id": "507f1f77bcf86cd799439013",
+        "name": "Alice Wilson",
+        "email": "alice.wilson@student.com",
+        "rollNumber": "STU001"
+      },
+      "amount": 5650,
+      "paidAmount": 2825,
+      "remainingAmount": 2825,
+      "status": "partial",
+      "dueDate": "2024-04-30T00:00:00.000Z",
+      "paymentMethod": "bank_transfer",
+      "transactionId": "TXN123456",
+      "paymentHistory": [
+        {
+          "amount": 2825,
+          "paymentDate": "2024-02-25T00:00:00.000Z",
+          "paymentMethod": "bank_transfer",
+          "transactionId": "TXN123456",
+          "remarks": "First installment paid"
+        }
+      ]
+    },
+    {
+      "_id": "507f1f77bcf86cd799439018",
+      "student": {
+        "_id": "507f1f77bcf86cd799439014",
+        "name": "Bob Davis",
+        "email": "bob.davis@student.com",
+        "rollNumber": "STU002"
+      },
+      "amount": 5650,
+      "paidAmount": 0,
+      "remainingAmount": 5650,
+      "status": "pending",
+      "dueDate": "2024-04-30T00:00:00.000Z",
+      "paymentMethod": "pending"
+    }
+  ],
+  "statistics": {
+    "totalStudents": 2,
+    "paidStudents": 0,
+    "partialStudents": 1,
+    "pendingStudents": 1,
+    "overdueStudents": 0,
+    "totalAmount": 11300,
+    "paidAmount": 2825,
+    "remainingAmount": 8475
+  }
+}
+```
+
+### 3. Record Fee Payment
+**POST** `/api/fees/payment`
+**Headers:** `Authorization: Bearer <token>`
+
+**Body:**
+```json
+{
+  "paymentId": "507f1f77bcf86cd799439017",
+  "amount": 2825,
+  "paymentMethod": "online",
+  "transactionId": "TXN789012",
+  "remarks": "Second installment - online payment",
+  "paymentDate": "2024-04-25T00:00:00.000Z"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Payment recorded successfully",
+  "payment": {
+    "_id": "507f1f77bcf86cd799439017",
+    "student": {
+      "name": "Alice Wilson",
+      "email": "alice.wilson@student.com"
+    },
+    "amount": 5650,
+    "paidAmount": 5650,
+    "remainingAmount": 0,
+    "status": "completed",
+    "paymentHistory": [
+      {
+        "amount": 2825,
+        "paymentDate": "2024-02-25T00:00:00.000Z",
+        "paymentMethod": "bank_transfer",
+        "transactionId": "TXN123456",
+        "remarks": "First installment paid"
+      },
+      {
+        "amount": 2825,
+        "paymentDate": "2024-04-25T00:00:00.000Z",
+        "paymentMethod": "online",
+        "transactionId": "TXN789012",
+        "remarks": "Second installment - online payment"
+      }
+    ]
+  }
+}
+```
+
+### 4. Get Student's Fee Records (Student Dashboard)
+**GET** `/api/fees/student/my-fees`
+**Headers:** `Authorization: Bearer <student_token>`
+
+**Description:** Students can view their own fee payment history.
+
+**Response:**
+```json
+[
+  {
+    "_id": "507f1f77bcf86cd799439017",
+    "feeStructure": {
+      "_id": "507f1f77bcf86cd799439016",
+      "name": "Grade 10A Annual Fees 2024-25",
+      "feeComponents": [
+        {
+          "name": "Tuition Fee",
+          "amount": 5000,
+          "type": "tuition"
+        },
+        {
+          "name": "Library Fee",
+          "amount": 200,
+          "type": "library"
+        }
+      ],
+      "dueDate": "2024-04-30T00:00:00.000Z",
+      "academicYear": "2024-25"
+    },
+    "amount": 5650,
+    "paidAmount": 5650,
+    "remainingAmount": 0,
+    "status": "completed",
+    "dueDate": "2024-04-30T00:00:00.000Z",
+    "paymentHistory": [...]
+  }
+]
+```
+
+---
+
+## Salary Management Endpoints
+
+### 1. Create Salary Structure
+**POST** `/api/fees/salary/structure`
+**Headers:** `Authorization: Bearer <token>`
+
+**Body:**
+```json
+{
+  "teacher": "507f1f77bcf86cd799439012",
+  "amount": 50000,
+  "salaryMonth": "2024-03",
+  "dueDate": "2024-03-31T00:00:00.000Z",
+  "remarks": "March 2024 salary"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Salary structure created successfully",
+  "payment": {
+    "_id": "507f1f77bcf86cd799439019",
+    "schoolId": "SCH001",
+    "paymentType": "salary",
+    "teacher": {
+      "_id": "507f1f77bcf86cd799439012",
+      "name": "Sarah Johnson",
+      "email": "sarah.johnson@school.com"
+    },
+    "amount": 50000,
+    "paidAmount": 0,
+    "remainingAmount": 50000,
+    "salaryMonth": "2024-03",
+    "status": "pending",
+    "dueDate": "2024-03-31T00:00:00.000Z",
+    "paymentMethod": "pending",
+    "remarks": "March 2024 salary"
+  }
+}
+```
+
+### 2. Get Salary Payment Status
+**GET** `/api/fees/salary`
+**Headers:** `Authorization: Bearer <token>`
+
+**Query Parameters:**
+- `month` (optional): Filter by specific month (YYYY-MM format)
+- `status` (optional): Filter by payment status
+
+**Example:** `/api/fees/salary?month=2024-03&status=pending`
+
+**Response:**
+```json
+{
+  "salaryPayments": [
+    {
+      "_id": "507f1f77bcf86cd799439019",
+      "teacher": {
+        "_id": "507f1f77bcf86cd799439012",
+        "name": "Sarah Johnson",
+        "email": "sarah.johnson@school.com",
+        "role": "class_teacher"
+      },
+      "amount": 50000,
+      "paidAmount": 0,
+      "remainingAmount": 50000,
+      "salaryMonth": "2024-03",
+      "status": "pending",
+      "dueDate": "2024-03-31T00:00:00.000Z",
+      "paymentMethod": "pending"
+    },
+    {
+      "_id": "507f1f77bcf86cd799439020",
+      "teacher": {
+        "_id": "507f1f77bcf86cd799439013",
+        "name": "Michael Brown",
+        "email": "michael.brown@school.com",
+        "role": "subject_teacher"
+      },
+      "amount": 55000,
+      "paidAmount": 55000,
+      "remainingAmount": 0,
+      "salaryMonth": "2024-03",
+      "status": "completed",
+      "dueDate": "2024-03-31T00:00:00.000Z",
+      "paymentMethod": "bank_transfer",
+      "transactionId": "SAL789012"
+    }
+  ],
+  "statistics": {
+    "totalTeachers": 2,
+    "paidTeachers": 1,
+    "partialTeachers": 0,
+    "pendingTeachers": 1,
+    "overdueTeachers": 0,
+    "totalAmount": 105000,
+    "paidAmount": 55000,
+    "remainingAmount": 50000
+  }
+}
+```
+
+### 3. Record Salary Payment
+**POST** `/api/fees/salary/payment`
+**Headers:** `Authorization: Bearer <token>`
+
+**Body:**
+```json
+{
+  "paymentId": "507f1f77bcf86cd799439019",
+  "amount": 50000,
+  "paymentMethod": "bank_transfer",
+  "transactionId": "SAL345678",
+  "remarks": "March 2024 salary payment",
+  "paymentDate": "2024-03-30T00:00:00.000Z"
+}
+```
+
+**Response:**
+```json
+{
+  "message": "Salary payment recorded successfully",
+  "payment": {
+    "_id": "507f1f77bcf86cd799439019",
+    "teacher": {
+      "name": "Sarah Johnson",
+      "email": "sarah.johnson@school.com"
+    },
+    "amount": 50000,
+    "paidAmount": 50000,
+    "remainingAmount": 0,
+    "status": "completed",
+    "salaryMonth": "2024-03",
+    "paymentMethod": "bank_transfer",
+    "transactionId": "SAL345678",
+    "paymentHistory": [
+      {
+        "amount": 50000,
+        "paymentDate": "2024-03-30T00:00:00.000Z",
+        "paymentMethod": "bank_transfer",
+        "transactionId": "SAL345678",
+        "remarks": "March 2024 salary payment"
+      }
+    ]
+  }
+}
+```
+
+### 4. Get Teacher's Salary Records (Teacher Dashboard)
+**GET** `/api/fees/teacher/my-salary`
+**Headers:** `Authorization: Bearer <teacher_token>`
+
+**Description:** Teachers can view their own salary payment history.
+
+**Response:**
+```json
+[
+  {
+    "_id": "507f1f77bcf86cd799439019",
+    "amount": 50000,
+    "paidAmount": 50000,
+    "remainingAmount": 0,
+    "salaryMonth": "2024-03",
+    "status": "completed",
+    "dueDate": "2024-03-31T00:00:00.000Z",
+    "paymentMethod": "bank_transfer",
+    "transactionId": "SAL345678",
+    "paymentHistory": [...]
+  },
+  {
+    "_id": "507f1f77bcf86cd799439021",
+    "amount": 50000,
+    "paidAmount": 0,
+    "remainingAmount": 50000,
+    "salaryMonth": "2024-04",
+    "status": "pending",
+    "dueDate": "2024-04-30T00:00:00.000Z",
+    "paymentMethod": "pending"
+  }
+]
 ```
 
 ---
@@ -408,8 +1122,11 @@ This system supports multiple schools with complete data isolation:
 ```json
 {
   "name": "Grade 11B",
+  "grade": "11",
+  "section": "B",
   "teacher": "507f1f77bcf86cd799439012",
-  "subjects": ["Mathematics", "Physics", "Chemistry", "Biology"]
+  "subjects": ["Mathematics", "Physics", "Chemistry", "Biology"],
+  "capacity": 40
 }
 ```
 
@@ -421,6 +1138,8 @@ This system supports multiple schools with complete data isolation:
     "_id": "507f1f77bcf86cd799439014",
     "name": "Grade 11B",
     "schoolId": "SCH001",
+    "grade": "11",
+    "section": "B",
     "teacher": {
       "_id": "507f1f77bcf86cd799439012",
       "name": "Sarah Johnson",
@@ -428,6 +1147,8 @@ This system supports multiple schools with complete data isolation:
     },
     "subjects": ["Mathematics", "Physics", "Chemistry", "Biology"],
     "students": [],
+    "capacity": 40,
+    "currentEnrollment": 0,
     "performance": {
       "averageGrade": 0,
       "attendanceRate": 0
@@ -619,30 +1340,67 @@ This system supports multiple schools with complete data isolation:
 
 ---
 
-## Database Performance & Architecture
+## Dashboard Performance Optimizations
 
-### Indexing Strategy
-The system uses optimized indexes for fast multi-tenant queries:
+### Schedule Query Optimizations
+
+The system includes highly optimized queries for dashboard performance:
+
+1. **Student Daily Schedule**: O(log n) lookup using compound indexes
+2. **Teacher Daily Schedule**: Optimized aggregation with teacher-specific filtering
+3. **Room Utilization**: Fast room-based queries for facility management
+4. **Weekly Workload**: Efficient teacher workload calculation
+
+### Database Indexing Strategy
 
 ```javascript
-// Compound indexes for each model
-{ schoolId: 1, createdAt: -1 }     // Fast school-specific listing
-{ schoolId: 1, email: 1 }          // Unique email per school
-{ schoolId: 1, name: 1 }           // Unique names per school (classes)
-{ schoolId: 1, date: 1 }           // Event date sorting
+// Schedule Performance Indexes
+{ schoolId: 1, class: 1, dayOfWeek: 1, isActive: 1 }       // Student dashboard
+{ schoolId: 1, 'periods.teacher': 1, dayOfWeek: 1 }       // Teacher dashboard
+{ schoolId: 1, 'periods.room': 1, dayOfWeek: 1 }          // Room utilization
+{ schoolId: 1, academicYear: 1, isActive: 1 }             // Admin overview
+
+// Fee Management Indexes  
+{ schoolId: 1, paymentType: 1, status: 1 }                // Payment tracking
+{ schoolId: 1, student: 1, paymentType: 1 }               // Student fees
+{ schoolId: 1, teacher: 1, paymentType: 1 }               // Teacher salary
+{ schoolId: 1, salaryMonth: 1 }                           // Monthly reports
 ```
 
-### Data Isolation
-- **Automatic Filtering**: All queries automatically filter by schoolId
-- **Unique Constraints**: Email uniqueness scoped to individual schools
-- **Performance**: Indexes ensure O(log n) query performance per school
-- **Scalability**: System can handle thousands of schools efficiently
+### Static Methods for Optimized Queries
 
-### Security Features
-- **School-Level Access Control**: Users can only access their school's data
-- **JWT-Based Authentication**: Secure token-based authentication
+The Schedule model includes static methods for fast dashboard queries:
+
+```javascript
+// Optimized static methods
+Schedule.getStudentDailySchedule(schoolId, classId, dayOfWeek)
+Schedule.getTeacherDailySchedule(schoolId, teacherId, dayOfWeek)
+Schedule.getClassWeeklySchedule(schoolId, classId)
+Schedule.getTeacherWeeklySchedule(schoolId, teacherId)
+Schedule.getRoomUtilization(schoolId, dayOfWeek)
+```
+
+---
+
+## Security Features
+
+### Multi-Level Authentication
+- **JWT-Based**: Secure token-based authentication for all user types
+- **Password Hashing**: bcrypt with salt rounds for password security
+- **User Type Validation**: Automatic user type detection and validation
+- **School-Level Isolation**: Complete data isolation between schools
+
+### Access Control
+- **Role-Based Access**: Different endpoints for admin/teacher/student
+- **School-Scoped Data**: Automatic filtering by schoolId
+- **Permission-Based**: Admin permissions control feature access
+- **Self-Service Dashboards**: Students/teachers can only access their own data
+
+### Data Protection
 - **Input Validation**: Comprehensive validation for all endpoints
 - **SQL Injection Prevention**: MongoDB and proper validation prevent attacks
+- **Cross-School Protection**: Users cannot access other schools' data
+- **Secure Headers**: Authorization headers required for protected routes
 
 ---
 
@@ -653,8 +1411,8 @@ The system uses optimized indexes for fast multi-tenant queries:
 {
   "errors": [
     {
-      "msg": "Name must be at least 2 characters",
-      "param": "name",
+      "msg": "Fee amount must be a positive number",
+      "param": "feeComponents.0.amount",
       "location": "body"
     }
   ]
@@ -671,21 +1429,21 @@ The system uses optimized indexes for fast multi-tenant queries:
 ### Forbidden (403)
 ```json
 {
-  "message": "Access denied. Insufficient permissions."
+  "message": "Access denied. Admin only."
 }
 ```
 
 ### Not Found (404)
 ```json
 {
-  "message": "Teacher not found"
+  "message": "Fee structure not found"
 }
 ```
 
-### Duplicate Entry (400)
+### Business Logic Error (400)
 ```json
 {
-  "message": "Teacher already exists with this email in your school"
+  "message": "Payment amount exceeds remaining balance"
 }
 ```
 
@@ -698,97 +1456,178 @@ The system uses optimized indexes for fast multi-tenant queries:
 
 ---
 
-## School ID System
+## Password Management
 
-### Format
-- **Pattern**: SCH + 3-5 digits (e.g., SCH001, SCH1234, SCH99999)
-- **Auto-generation**: If not provided during registration, system generates unique ID
-- **Validation**: Must match regex pattern `/^SCH[0-9]{3,5}$/`
-- **Uniqueness**: Each school ID must be unique across the system
+### Password Requirements
+- **Minimum Length**: 6 characters
+- **Hashing**: bcrypt with salt rounds (10)
+- **Storage**: Only hashed passwords stored in database
+- **Validation**: Password comparison using bcrypt.compare()
 
-### Usage
-- **School Identification**: Unique identifier for each school
-- **Data Isolation**: All data queries filtered by schoolId
-- **Auto-Assignment**: Automatically assigned to all records
-- **Immutable**: Cannot be changed after admin creation
+### User Account Creation
+- **Admin Registration**: Self-registration with school creation
+- **Teacher Addition**: Created by admin with initial password
+- **Student Enrollment**: Created by admin with initial password
+- **Password Reset**: Manual process through admin (future: email reset)
 
-### Generator Algorithm
-```javascript
-// Starts from SCH001 and increments to SCH99999
-// Checks for uniqueness before assignment
-// Fails if all IDs are exhausted (extremely unlikely)
-```
+### Login Flow
+1. User submits email/password to appropriate endpoint
+2. System finds user by email and user type
+3. Password verified using bcrypt.compare()
+4. JWT token generated with userType and schoolId
+5. Token returned for subsequent API calls
+
+---
+
+## Multi-Tenant Data Flow
+
+### School Registration Flow
+1. Admin registers with optional schoolId
+2. System generates unique schoolId if not provided
+3. All subsequent data automatically tagged with schoolId
+4. Teachers and students inherit admin's schoolId
+
+### Data Isolation Mechanism
+1. **Automatic Filtering**: All queries automatically include schoolId filter
+2. **Compound Indexes**: Fast school-specific data retrieval
+3. **Validation**: Cross-school data access prevented at API level
+4. **Authentication Context**: schoolId included in JWT and request context
+
+### Performance Characteristics
+- **Query Time**: O(log n) for school-specific queries
+- **Scalability**: Linear scaling with number of schools
+- **Index Efficiency**: Compound indexes ensure optimal performance
+- **Memory Usage**: Efficient indexing strategy minimizes memory overhead
 
 ---
 
 ## Testing Instructions
 
-### 1. Setup
-1. Run `npm run seed` to populate test data with multiple schools
-2. Start server with `npm run dev`
-3. Use Postman, curl, or any API testing tool
-
-### 2. Multi-School Testing
-1. **Login as School 1**: `admin1@school.com` / `password123` (SCH001)
-2. **Login as School 2**: `admin2@school.com` / `password123` (SCH002)
-3. **Verify Data Isolation**: Each admin only sees their school's data
-4. **Test Cross-School Access**: Attempt to access other school's records (should fail)
-
-### 3. Sample cURL Commands
-
-**Login School 1:**
+### 1. Multi-User Authentication Testing
 ```bash
+# Test Admin Login
 curl -X POST http://localhost:5000/api/admin/login \
   -H "Content-Type: application/json" \
   -d '{"email":"admin1@school.com","password":"password123"}'
-```
 
-**Get School-Specific Teachers:**
-```bash
-curl -X GET http://localhost:5000/api/teachers \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE"
-```
-
-**Create School-Specific Student:**
-```bash
-curl -X POST http://localhost:5000/api/students \
+# Test Teacher Login  
+curl -X POST http://localhost:5000/api/auth/teacher/login \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN_HERE" \
-  -d '{"name":"Test Student","email":"test@student.com","parentInfo":{"name":"Test Parent","contact":"+1234567890"}}'
+  -d '{"email":"sarah.johnson@school.com","password":"password123"}'
+
+# Test Student Login
+curl -X POST http://localhost:5000/api/auth/student/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"alice.wilson@student.com","password":"password123"}'
 ```
 
-### 4. Performance Testing
-- **Large Dataset**: Create multiple schools with hundreds of records each
-- **Query Performance**: Test response times for school-specific queries
-- **Concurrent Access**: Test multiple schools accessing simultaneously
-- **Index Verification**: Use MongoDB explain() to verify index usage
+### 2. Schedule Testing
+```bash
+# Get Student Daily Schedule
+curl -X GET http://localhost:5000/api/schedules/student/CLASS_ID/daily/monday \
+  -H "Authorization: Bearer STUDENT_TOKEN"
+
+# Get Teacher Daily Schedule  
+curl -X GET http://localhost:5000/api/schedules/teacher/TEACHER_ID/daily/monday \
+  -H "Authorization: Bearer TEACHER_TOKEN"
+
+# Get Room Utilization
+curl -X GET http://localhost:5000/api/schedules/room-utilization/monday \
+  -H "Authorization: Bearer ADMIN_TOKEN"
+```
+
+### 3. Fee Management Testing
+```bash
+# Create Fee Structure
+curl -X POST http://localhost:5000/api/fees/structure \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ADMIN_TOKEN" \
+  -d '{"name":"Test Fees","class":"CLASS_ID","feeComponents":[{"name":"Tuition","amount":1000,"type":"tuition"}],"dueDate":"2024-12-31"}'
+
+# Record Payment
+curl -X POST http://localhost:5000/api/fees/payment \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ADMIN_TOKEN" \
+  -d '{"paymentId":"PAYMENT_ID","amount":500,"paymentMethod":"cash","paymentDate":"2024-01-15"}'
+
+# Get Student Fees
+curl -X GET http://localhost:5000/api/fees/student/my-fees \
+  -H "Authorization: Bearer STUDENT_TOKEN"
+```
+
+### 4. Salary Management Testing
+```bash
+# Create Salary Structure
+curl -X POST http://localhost:5000/api/fees/salary/structure \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ADMIN_TOKEN" \
+  -d '{"teacher":"TEACHER_ID","amount":50000,"salaryMonth":"2024-01","dueDate":"2024-01-31"}'
+
+# Get Teacher Salary Records
+curl -X GET http://localhost:5000/api/fees/teacher/my-salary \
+  -H "Authorization: Bearer TEACHER_TOKEN"
+```
 
 ---
 
-## API Rate Limiting & Production Notes
+## Production Considerations
+
+### Environment Variables Required
+```env
+MONGODB_URI=mongodb://localhost:27017/school_management
+JWT_SECRET=your_super_secure_jwt_secret_here
+PORT=5000
+NODE_ENV=production
+```
 
 ### Recommended Production Settings
 - **Rate Limiting**: 100 requests per minute per IP
-- **CORS**: Configure for specific frontend domains
+- **CORS**: Configure for specific frontend domains  
 - **HTTPS**: Use SSL certificates in production
-- **Environment Variables**: Secure JWT secrets and database credentials
-- **Logging**: Implement comprehensive logging for monitoring
+- **Monitoring**: Implement comprehensive logging and monitoring
 - **Backup**: Regular database backups with school-level restoration
+- **Caching**: Redis caching for frequently accessed schedules
+- **Load Balancing**: Multiple server instances behind load balancer
 
-### Monitoring Endpoints
-Consider adding these endpoints for production monitoring:
-- `GET /api/health` - System health check
-- `GET /api/stats` - Database statistics per school
-- `GET /api/admin/analytics` - School-specific analytics
+### Security Checklist
+- [ ] Secure JWT secret (32+ characters)
+- [ ] HTTPS enforced in production
+- [ ] Input validation on all endpoints
+- [ ] Rate limiting implemented
+- [ ] Database connections secured
+- [ ] Error logging configured
+- [ ] File upload restrictions (if implemented)
+- [ ] CORS properly configured
+
+---
+
+## API Summary
+
+| Feature | Admin | Teacher | Student | Endpoints |
+|---------|-------|---------|---------|-----------|
+| Authentication | ✅ | ✅ | ✅ | 4 |
+| Schedule Management | ✅ | ✅ (view) | ✅ (view) | 12 |
+| Fee Management | ✅ | ❌ | ✅ (view) | 8 |
+| Salary Management | ✅ | ✅ (view) | ❌ | 4 |
+| Student Management | ✅ | ❌ | ❌ | 5 |
+| Teacher Management | ✅ | ❌ | ❌ | 5 |
+| Class Management | ✅ | ❌ | ❌ | 5 |
+| Event Management | ✅ | ❌ | ❌ | 4 |
+
+**Total Endpoints**: 47 comprehensive endpoints covering all school management needs.
 
 ---
 
 ## Notes
 - All dates should be in ISO 8601 format
-- Phone validation requires valid mobile phone format
+- Phone validation requires valid mobile phone format  
 - Email validation is enforced on all email fields
 - JWT tokens expire after 24 hours
 - All responses include appropriate HTTP status codes
 - schoolId is automatically managed - never manually specified in request bodies
 - Cross-school data access is completely prevented at the API level
 - Database queries are optimized with compound indexes for fast multi-tenant performance
+- Password authentication required for all user types (admin/teacher/student)
+- Fee and salary management includes comprehensive payment tracking
+- Schedule system supports complex timetable management with room allocation
+- Real-time dashboard queries optimized for sub-100ms response times

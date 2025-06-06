@@ -18,10 +18,13 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/api/admin', require('./routes/adminRoutes'));
+app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/fees', require('./routes/feeRoutes'));
 app.use('/api/classes', require('./routes/classRoutes'));
 app.use('/api/teachers', require('./routes/teacherRoutes'));
 app.use('/api/students', require('./routes/studentRoutes'));
 app.use('/api/events', require('./routes/eventRoutes'));
+app.use('/api/schedules', require('./routes/scheduleRoutes'));
 
 // Basic route
 app.get('/', (req, res) => {

@@ -16,6 +16,16 @@ const validateAdmin = [
   body('schoolName').trim().isLength({ min: 2 }).withMessage('School name is required'),
   body('schoolId').optional().matches(/^SCH[0-9]{3,5}$/).withMessage('School ID must be in format SCH001-SCH99999')
 ];
+
+// Generate JWT token
+const generateToken = (adminId) => {
+  return jwt.sign(
+    { id: adminId, userType: 'admin' },
+    process.env.JWT_SECRET,
+    { expiresIn: '24h' }
+  );
+};
+
 // @route   POST /api/admin/register
 // @desc    Register a new admin
 // @access  Public
@@ -61,11 +71,7 @@ router.post('/register', validateAdmin, async (req, res) => {
     await admin.save();
 
     // Generate JWT token
-    const token = jwt.sign(
-      { id: admin._id, role: admin.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    const token = generateToken(admin._id);
 
     res.status(201).json({
       message: 'Admin registered successfully',
@@ -114,11 +120,7 @@ router.post('/login', [
     }
 
     // Generate JWT token
-    const token = jwt.sign(
-      { id: admin._id, role: admin.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    const token = generateToken(admin._id);
 
     res.json({
       message: 'Login successful',
